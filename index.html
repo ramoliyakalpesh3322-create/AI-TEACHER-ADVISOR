@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Teacher</title>
+    <!-- Inter font ka upyog karen -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <!-- Styling ke liye Tailwind CSS ka upyog karen -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 900px;
+            width: 95%;
+            padding: 2.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        .chat-bubble {
+            max-width: 85%;
+            padding: 0.75rem 1.25rem;
+            border-radius: 1.25rem;
+            line-height: 1.4;
+            word-wrap: break-word;
+            position: relative;
+        }
+        .chat-bubble.user {
+            background-color: #e2e8f0;
+            color: #2d3748;
+            align-self: flex-end;
+            border-bottom-right-radius: 0.5rem;
+        }
+        .chat-bubble.ai {
+            background-color: #4a5568;
+            color: #f7fafc;
+            align-self: flex-start;
+            border-bottom-left-radius: 0.5rem;
+        }
+        .chat-bubble .play-button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            margin-left: 0.5rem;
+            color: #f7fafc;
+            opacity: 0.8;
+            transition: opacity 0.2s ease-in-out;
+            display: none; /* Initially hidden */
+        }
+        .chat-bubble.ai .play-button {
+             display: inline-block;
+        }
+        .chat-bubble .play-button:hover {
+            opacity: 1;
+        }
+        
+        /* Loading animation for chat */
+        @keyframes bounce {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.5); }
+        }
+        .dot {
+            animation: bounce 0.6s infinite;
+        }
+        .dot-2 {
+            animation-delay: 0.2s;
+        }
+        .dot-3 {
+            animation-delay: 0.4s;
+        }
+        .microphone-button {
+            background-color: #f7fafc;
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem;
+            border-radius: 9999px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s ease-in-out;
+        }
+        .microphone-button:hover {
+            background-color: #e2e8f0;
+            transform: scale(1.05);
+        }
+        .microphone-button.active {
+            animation: pulse-ring 1s infinite;
+            border-color: #3b82f6;
+        }
+        @keyframes pulse-ring {
+            0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4); }
+            100% { box-shadow: 0 0 0 16px rgba(59, 130, 246, 0); }
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="container bg-white shadow-2xl rounded-2xl border border-gray-200">
+        <h1 class="text-3xl font-semibold text-center text-gray-800 mb-2">
+            AI Teacher ✨
+        </h1>
+        <p class="text-center text-gray-500 mb-6">
+            Upload a book, solve your doubts, and have a chat with an animated teacher.
+        </p>
+        
+        <!-- PDF Upload Section -->
+        <div class="bg-gray-50 p-6 rounded-xl border border-dashed border-gray-300 flex flex-col items-center">
+            <label for="pdf-upload" class="cursor-pointer text-blue-600 hover:text-blue-800 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-gray-400 mb-2" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 3-6 4 8z" clip-rule="evenodd" />
+                </svg>
+                <span class="font-medium text-sm">PDF select karne ke liye click karein</span>
+            </label>
+            <input type="file" id="pdf-upload" accept=".pdf" class="hidden">
+            <p id="file-name" class="mt-2 text-sm text-gray-500"></p>
+        </div>
+
+        <!-- AI Interaction Section -->
+        <div class="mt-4">
+            <h2 class="text-xl font-medium text-gray-700 mb-2">AI Teacher se Baat Karein:</h2>
+            
+            <!-- Chat history display -->
+            <div id="chat-history" class="bg-gray-100 p-4 rounded-lg h-96 overflow-y-auto flex flex-col gap-4 mb-4">
+                <!-- Chat messages will be added here dynamically -->
+                <div class="chat-bubble ai">Namaste! Main aapka AI Teacher hoon. Sawaal poochein ya ek PDF upload karein, main aapki madad karunga.</div>
+            </div>
+
+            <div class="flex items-center gap-2 mb-4">
+                <textarea id="question-input" rows="2" placeholder="Sawaal likhein..." class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors placeholder-gray-400"></textarea>
+                <button id="voice-input-btn" class="microphone-button flex-shrink-0" title="Bolkar Sawaal Poochhein">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 256 256" fill="currentColor"><path d="M128,176a48,48,0,0,0,48-48V64a48,48,0,0,0-96,0v64A48,48,0,0,0,128,176ZM208,128a8,8,0,0,0-16,0,64.1,64.1,0,0,1-64,64,64.1,64.1,0,0,1-64-64,8,8,0,0,0-16,0,80.1,80.1,0,0,0,80,80v32H96a8,8,0,0,0,0,16h64a8,8,0,0,0,0-16H144V208A80.1,80.1,0,0,0,208,128Z"></path></svg>
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                <button id="send-btn" class="w-full bg-blue-600 text-white font-semibold py-3 rounded-lg shadow-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    Bhejein
+                </button>
+                <button id="summarize-btn" class="w-full bg-green-600 text-white font-semibold py-3 rounded-lg shadow-md hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    PDF ka Summary
+                </button>
+                <button id="simple-explain-btn" class="w-full bg-orange-500 text-white font-semibold py-3 rounded-lg shadow-md hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    Saral Bhasha Mein Samjhaein ✨
+                </button>
+                <button id="quiz-btn" class="w-full bg-purple-600 text-white font-semibold py-3 rounded-lg shadow-md hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    Quiz Generate Karein ✨
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- DOM Elements ---
+            const fileInput = document.getElementById('pdf-upload');
+            const fileNameDisplay = document.getElementById('file-name');
+            const questionInput = document.getElementById('question-input');
+            const sendBtn = document.getElementById('send-btn');
+            const summarizeBtn = document.getElementById('summarize-btn');
+            const quizBtn = document.getElementById('quiz-btn');
+            const simpleExplainBtn = document.getElementById('simple-explain-btn');
+            const voiceInputBtn = document.getElementById('voice-input-btn');
+            const chatHistory = document.getElementById('chat-history');
+
+            let extractedPDFText = null; // null se shuru kiya gaya
+            let speechRecognition;
+
+            // --- Audio Playback Functions (TTS) ---
+            function base64ToArrayBuffer(base64) {
+                const binaryString = window.atob(base64);
+                const len = binaryString.length;
+                const bytes = new Uint8Array(len);
+                for (let i = 0; i < len; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+                return bytes.buffer;
+            }
+
+            function pcmToWav(pcm16, sampleRate) {
+                const dataLength = pcm16.length * 2;
+                const buffer = new ArrayBuffer(44 + dataLength);
+                const view = new DataView(buffer);
+
+                let offset = 0;
+                
+                // Write RIFF header
+                view.setUint32(offset, 0x52494646, true); offset += 4; // "RIFF"
+                view.setUint32(offset, 36 + dataLength, true); offset += 4; // file length
+                view.setUint32(offset, 0x57415645, true); offset += 4; // "WAVE"
+                
+                // Write fmt sub-chunk
+                view.setUint32(offset, 0x666d7420, true); offset += 4; // "fmt "
+                view.setUint32(offset, 16, true); offset += 4; // sub-chunk size
+                view.setUint16(offset, 1, true); offset += 2; // audio format (1 = PCM)
+                view.setUint16(offset, 1, true); offset += 2; // number of channels (1)
+                view.setUint32(offset, sampleRate, true); offset += 4; // sample rate
+                view.setUint32(offset, sampleRate * 2, true); offset += 4; // byte rate
+                view.setUint16(offset, 2, true); offset += 2; // block align
+                view.setUint16(offset, 16, true); offset += 2; // bits per sample
+                
+                // Write data sub-chunk
+                view.setUint32(offset, 0x64617461, true); offset += 4; // "data"
+                view.setUint32(offset, dataLength, true); offset += 4; // data size
+                
+                // Write PCM data
+                for (let i = 0; i < pcm16.length; i++) {
+                    view.setInt16(offset, pcm16[i], true);
+                    offset += 2;
+                }
+
+                return new Blob([view], { type: 'audio/wav' });
+            }
+            
+            async function playAudioFromTTS(text) {
+                const payload = {
+                    contents: [{
+                        parts: [{ text: text }]
+                    }],
+                    generationConfig: {
+                        responseModalities: ["AUDIO"],
+                        speechConfig: {
+                             voiceConfig: {
+                                prebuiltVoiceConfig: { voiceName: "Charon" }
+                            }
+                        }
+                    },
+                    model: "gemini-2.5-flash-preview-tts"
+                };
+                const apiKey = "";
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
+                
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`TTS HTTP Error! Status: ${response.status}`);
+                    }
+                    
+                    const result = await response.json();
+                    const part = result?.candidates?.[0]?.content?.parts?.[0];
+                    const audioData = part?.inlineData?.data;
+                    const mimeType = part?.inlineData?.mimeType;
+
+                    if (audioData && mimeType && mimeType.startsWith("audio/")) {
+                        const sampleRate = parseInt(mimeType.match(/rate=(\d+)/)[1], 10);
+                        const pcmData = base64ToArrayBuffer(audioData);
+                        const pcm16 = new Int16Array(pcmData);
+                        const wavBlob = pcmToWav(pcm16, sampleRate);
+                        const audioUrl = URL.createObjectURL(wavBlob);
+                        
+                        const audio = new Audio(audioUrl);
+                        audio.play();
+                        
+                        return audioUrl;
+                    } else {
+                        throw new Error("TTS API se koi audio content nahi mila.");
+                    }
+                } catch (error) {
+                    console.error('TTS Error:', error);
+                    return null;
+                }
+            }
+
+            // --- Utility Functions ---
+            // Ab yeh function mock text nahi return karega, balki PDF ko process karega.
+            async function extractTextFromPdf(file) {
+                 return new Promise((resolve) => {
+                    setTimeout(() => {
+                        console.log("PDF processing... (This is a placeholder, a real library is needed for this step.)");
+                        resolve(null); // ab koi mock text nahi hai
+                    }, 1000);
+                });
+            }
+            
+            function appendMessage(text, sender, audioUrl = null) {
+                const messageElement = document.createElement('div');
+                messageElement.classList.add('chat-bubble', sender === 'user' ? 'user' : 'ai');
+                
+                const textSpan = document.createElement('span');
+                textSpan.textContent = text;
+                messageElement.appendChild(textSpan);
+
+                if (sender === 'ai' && audioUrl) {
+                    const playButton = document.createElement('button');
+                    playButton.classList.add('play-button');
+                    playButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 256 256"><path d="M112,208a16,16,0,0,1-16-16V64a16,16,0,0,1,24.12-13.84l96,64A16,16,0,0,1,224,128a16,16,0,0,1-7.88,13.84l-96,64A16,16,0,0,1,112,208Z"></path></svg>`;
+                    playButton.addEventListener('click', () => {
+                        const audio = new Audio(audioUrl);
+                        audio.play();
+                    });
+                    messageElement.appendChild(playButton);
+                }
+
+                chatHistory.appendChild(messageElement);
+                chatHistory.scrollTop = chatHistory.scrollHeight;
+            }
+
+            function setUIState(enabled, message = 'Bhejein') {
+                const buttons = [sendBtn, summarizeBtn, quizBtn, simpleExplainBtn, voiceInputBtn];
+                buttons.forEach(btn => btn.disabled = !enabled);
+                questionInput.disabled = !enabled;
+                sendBtn.textContent = message;
+            }
+
+            async function callGeminiTextAPI(prompt) {
+                setUIState(false, 'Bheja jaa raha hai...');
+                const loadingMessage = document.createElement('div');
+                loadingMessage.innerHTML = `
+                    <div class="flex items-center space-x-2">
+                        <div class="w-2 h-2 bg-gray-400 rounded-full dot"></div>
+                        <div class="w-2 h-2 bg-gray-400 rounded-full dot dot-2"></div>
+                        <div class="w-2 h-2 bg-gray-400 rounded-full dot dot-3"></div>
+                    </div>
+                `;
+                loadingMessage.classList.add('chat-bubble', 'ai', 'bg-gray-400', 'text-white', 'p-2');
+                chatHistory.appendChild(loadingMessage);
+                chatHistory.scrollTop = chatHistory.scrollHeight;
+
+                try {
+                    const chatHistoryPayload = [{ role: "user", parts: [{ text: prompt }] }];
+                    const payload = { contents: chatHistoryPayload };
+                    const apiKey = "";
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP Error! Status: ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    
+                    if (result.candidates && result.candidates.length > 0) {
+                        const answer = result.candidates[0].content.parts[0].text;
+                        const audioUrl = await playAudioFromTTS(answer);
+                        appendMessage(answer, 'ai', audioUrl);
+                    } else {
+                        throw new Error("API se koi content nahi mila.");
+                    }
+                } catch (error) {
+                    appendMessage(`Ek error ho gayi: ${error.message}`, 'ai');
+                    console.error('Error:', error);
+                } finally {
+                    chatHistory.removeChild(loadingMessage);
+                    setUIState(true);
+                }
+            }
+
+            async function generateQuiz() {
+                if (!extractedPDFText) {
+                    appendMessage('Quiz banane ke liye pehle ek PDF upload karein.', 'ai');
+                    return;
+                }
+                appendMessage('Main aapke liye quiz bana raha hoon...', 'ai');
+                setUIState(false);
+
+                try {
+                    const quizPrompt = `Generate a multiple-choice quiz with 3-5 questions based on the following text. Each question should have 4 options and a correct answer. Ensure the questions and options are directly related to the provided text.
+                    ---
+                    Text:
+                    ${extractedPDFText}
+                    ---`;
+                    
+                    const payload = {
+                        contents: [{ parts: [{ text: quizPrompt }] }],
+                        generationConfig: {
+                            responseMimeType: "application/json",
+                            responseSchema: {
+                                type: "ARRAY",
+                                items: {
+                                    type: "OBJECT",
+                                    properties: {
+                                        "question": { "type": "STRING" },
+                                        "options": {
+                                            "type": "ARRAY",
+                                            "items": { "type": "STRING" }
+                                        },
+                                        "answer": { "type": "STRING" }
+                                    },
+                                    "propertyOrdering": ["question", "options", "answer"]
+                                }
+                            }
+                        }
+                    };
+                    const apiKey = "";
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP Error! Status: ${response.status}`);
+                    }
+                    
+                    const result = await response.json();
+                    const quizData = JSON.parse(result.candidates[0].content.parts[0].text);
+                    let quizText = `PDF se Quiz\n\n`;
+                    quizData.forEach((item, index) => {
+                        quizText += `Q${index + 1}: ${item.question}\n`;
+                        item.options.forEach(option => {
+                            quizText += `  - ${option}\n`;
+                        });
+                        quizText += `Sahi Jawab: ${item.answer}\n\n`;
+                    });
+                    
+                    const audioUrl = await playAudioFromTTS("Yeh raha PDF par adharit ek quiz.");
+                    appendMessage(quizText, 'ai', audioUrl);
+
+                } catch (error) {
+                    appendMessage(`Ek error ho gayi: ${error.message}`, 'ai');
+                    console.error('Error:', error);
+                } finally {
+                    setUIState(true);
+                }
+            }
+
+            async function explainSimply() {
+                if (!extractedPDFText) {
+                    appendMessage('Saral bhasha mein samjhane ke liye pehle ek PDF upload karein.', 'ai');
+                    return;
+                }
+                appendMessage('Saral Bhasha Mein Samjhaein.', 'user');
+                const prompt = `Explain the following text in very simple terms, as if you are explaining it to a middle school student. Use a conversational and friendly tone.
+                ---
+                PDF Content:
+                ${extractedPDFText}
+                ---`;
+                callGeminiTextAPI(prompt);
+            }
+
+            // --- Voice Recognition Setup ---
+            if ('webkitSpeechRecognition' in window) {
+                speechRecognition = new webkitSpeechRecognition();
+                speechRecognition.continuous = false; // Stop after a single phrase
+                speechRecognition.interimResults = false;
+                speechRecognition.lang = 'en-US'; // Can be changed to 'hi-IN' for Hindi
+
+                speechRecognition.onstart = () => {
+                    voiceInputBtn.classList.add('active');
+                    questionInput.placeholder = 'Sun raha hoon...';
+                    setUIState(false);
+                };
+
+                speechRecognition.onresult = (event) => {
+                    const transcript = event.results[0][0].transcript;
+                    questionInput.value = transcript;
+                };
+
+                speechRecognition.onend = () => {
+                    voiceInputBtn.classList.remove('active');
+                    questionInput.placeholder = 'Sawaal likhein...';
+                    setUIState(true);
+                    // Automatically send the question after recognition ends
+                    sendBtn.click();
+                };
+
+                speechRecognition.onerror = (event) => {
+                    console.error('Speech recognition error:', event.error);
+                    appendMessage(`Voice input mein error aayi: ${event.error}`, 'ai');
+                    voiceInputBtn.classList.remove('active');
+                    questionInput.placeholder = 'Sawaal likhein...';
+                    setUIState(true);
+                };
+            } else {
+                voiceInputBtn.style.display = 'none';
+            }
+
+            // --- Event Listeners ---
+            fileInput.addEventListener('change', async (event) => {
+                const file = event.target.files[0];
+                if (file) {
+                    fileNameDisplay.textContent = `Select Kiya Gaya: ${file.name}`;
+                    appendMessage("PDF processing ho rahi hai...", 'ai');
+                    setUIState(false);
+                    // Ab extractedPDFText ko file se nikalte hain.
+                    // Filhaal yeh ek placeholder hai, asli PDF parser yahan aayega.
+                    extractedPDFText = await extractTextFromPdf(file);
+                    if (extractedPDFText) {
+                        appendMessage("PDF read ho gaya hai! Ab aap isse sambandhit sawaal pooch sakte hain.", 'ai');
+                    } else {
+                        appendMessage("PDF read nahi kar paya. Kripya aam sawaal poochein.", 'ai');
+                    }
+                    setUIState(true);
+                }
+            });
+
+            sendBtn.addEventListener('click', () => {
+                const userQuestion = questionInput.value.trim();
+                if (!userQuestion) {
+                    appendMessage('Kripya ek sawaal likhein.', 'ai');
+                    return;
+                }
+                
+                appendMessage(userQuestion, 'user');
+                questionInput.value = '';
+
+                if (extractedPDFText) {
+                    const prompt = `You are a helpful assistant for a PDF document. Answer the user's question only based on the following text from the PDF.
+                    ---
+                    PDF Content:
+                    ${extractedPDFText}
+                    ---
+                    User's Question:
+                    ${userQuestion}`;
+                    callGeminiTextAPI(prompt);
+                } else {
+                    const prompt = `Answer the following question in Hindi: ${userQuestion}`;
+                    callGeminiTextAPI(prompt);
+                }
+            });
+
+            // Enter key to send message
+            questionInput.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' && !event.shiftKey) {
+                    event.preventDefault();
+                    sendBtn.click();
+                }
+            });
+
+            summarizeBtn.addEventListener('click', () => {
+                if (!extractedPDFText) {
+                    appendMessage('Kripya pehle ek PDF upload karein.', 'ai');
+                    return;
+                }
+                appendMessage('PDF ka summary.', 'user');
+                const prompt = `Please provide a concise summary of the following text from a PDF.
+                ---
+                PDF Content:
+                ${extractedPDFText}
+                ---`;
+                callGeminiTextAPI(prompt);
+            });
+            
+            simpleExplainBtn.addEventListener('click', () => {
+                explainSimply();
+            });
+
+            quizBtn.addEventListener('click', () => {
+                appendMessage('Ek quiz generate kar raha hoon.', 'user');
+                generateQuiz();
+            });
+            
+            voiceInputBtn.addEventListener('click', () => {
+                if (speechRecognition) {
+                    speechRecognition.start();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
+
